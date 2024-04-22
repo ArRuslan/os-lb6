@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef __MINGW32__
+
 #include <cstdint>
 #include <cstdio>
 #include <memoryapi.h>
@@ -64,3 +66,5 @@ private:
     int readIndex;
     int writeIndex;
 };
+
+#endif

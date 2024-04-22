@@ -1,10 +1,14 @@
 #include <cstdint>
 #include <iostream>
+#ifdef __MINGW32__
 #include <memoryapi.h>
+#endif
 
 #include "md5.h"
 #include "task2_queue.h"
+#include "task3_lru.hpp"
 
+#ifdef __MINGW32__
 bool isPasswordStrong(const std::string& password) {
     if(password.length() < 8)
         return false;
@@ -93,12 +97,35 @@ void task2() {
         printf("Dequeued: %s\n", queue.dequeue().c_str());
     }
 }
+#endif
+
+void task3() {
+    auto* cache = new LruCache(128, 4, 64);
+
+    uint32_t hits = 0;
+    uint32_t misses = 0;
+
+    for(int i = 0; i < 1024 * 32; i++) {
+        if(cache->access_cache(randrange(0x00, 0xFFFF)))
+            hits++;
+        else
+            misses++;
+    }
+
+    printf("Hits: %d\n", hits);
+    printf("Misses: %d\n", misses);
+
+    delete cache;
+}
 
 int main() {
     task1();
     task2();
+    task3();
 
     return 0;
 }
 
-template class Queue<int>;
+#ifdef __MINGW32__
+template class Queue<std::string>;
+#endif

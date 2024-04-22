@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <stddef.h>
+#include <sys/types.h>
 
 constexpr int HASH_SIZE = 16;
 
