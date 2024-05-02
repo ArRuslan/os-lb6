@@ -1,10 +1,10 @@
 #pragma once
 
-#ifdef __MINGW32__
+#ifdef __WIN32__
 
 #include <cstdint>
 #include <cstdio>
-#include <memoryapi.h>
+#include <windows.h>
 
 template <typename T>
 class Queue {

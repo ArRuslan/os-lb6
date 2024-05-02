@@ -1,14 +1,14 @@
+#pragma once
+
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
 #include <deque>
-#include <iostream>
 #include <vector>
 #include <random>
 
 struct CacheBlock {
     uint64_t start_address;
-    char* data;
+    void* data;
 };
 
 class LruCache {
@@ -23,7 +23,7 @@ public:
             cache[i] = std::deque<CacheBlock*>();
     }
 
-    bool access_cache(const uint64_t real_address) {
+    void* access_cache(const uint64_t real_address) {
         const uint16_t offset = real_address & (block_size - 1);
         const uint16_t line = (real_address >> 6) & (lines - 1);
 
@@ -34,8 +34,13 @@ public:
             auto* block = static_cast<CacheBlock*>(malloc(sizeof(CacheBlock)));
             memset(block, 0, sizeof(CacheBlock));
             block->start_address = block_addr;
+
+            block->data = malloc(block_size);
+            memcpy(block->data, (void*)block_addr, block_size);
             blocks.push_back(block);
-            return false;
+
+            misses++;
+            return block->data;
         }
 
         for(int found_block = blocks.size()-1; found_block >= 0; found_block--) {
@@ -45,22 +50,50 @@ public:
                 CacheBlock* block = blocks[found_block];
                 blocks.erase(blocks.begin()+found_block);
                 blocks.push_back(block);
-                return true;
+
+                hits++;
+                return block->data;
             }
         }
 
         if(blocks.size() == blocks_per_line) {
             CacheBlock* block = blocks[0];
             blocks.pop_front();
+            memcpy((void*)block->start_address, block->data, block_size);
+            free(block->data);
             free(block);
         }
 
         auto* new_block = static_cast<CacheBlock*>(malloc(sizeof(CacheBlock)));
         memset(new_block, 0, sizeof(CacheBlock));
         new_block->start_address = block_addr;
+
+        new_block->data = malloc(block_size);
+        memcpy(new_block->data, (void*)block_addr, block_size);
         blocks.push_back(new_block);
 
-        return false;
+        misses++;
+        return new_block->data;
+    }
+
+    uint32_t getHitCount() {
+        return hits;
+    }
+
+    uint32_t getMissCount() {
+        return misses;
+    }
+
+    ~LruCache() {
+        for(auto& line : cache) {
+            while(!line.empty()) {
+                CacheBlock* block = line[0];
+                line.pop_front();
+                memcpy((void*)block->start_address, block->data, block_size);
+                free(block->data);
+                free(block);
+            }
+        }
     }
 
 private:
@@ -68,6 +101,9 @@ private:
     uint16_t blocks_per_line;
     uint16_t block_size;
     std::vector<std::deque<CacheBlock*>> cache;
+
+    uint32_t hits = 0;
+    uint32_t misses = 0;
 };
 
 uint64_t randrange(const uint64_t min, const uint64_t max) {
@@ -78,25 +114,3 @@ uint64_t randrange(const uint64_t min, const uint64_t max) {
     const uint64_t range = max - min + 1;
     return distr(eng) % range + min;
 }
-
-/*
-int main() {
-    const auto lru = new LruCache(128, 4, 64);
-
-    uint32_t hits = 0;
-    uint32_t misses = 0;
-
-    for(int i = 0; i < 1024 * 32; i++) {
-        if(lru->access_cache(randrange(0x00, 0xFFFF)))
-            hits++;
-        else
-            misses++;
-    }
-
-    printf("Hits: %d\n", hits);
-    printf("Misses: %d\n", misses);
-
-    delete lru;
-    return 0;
-}
-*/

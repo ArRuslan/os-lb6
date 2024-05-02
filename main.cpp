@@ -1,14 +1,17 @@
 #include <cstdint>
 #include <iostream>
-#ifdef __MINGW32__
-#include <memoryapi.h>
+#include "task3_lru.hpp"
+#include <fcntl.h>
+#include <unistd.h>
+
+#ifdef __WIN32__
+#include <windows.h>
 #endif
 
 #include "md5.h"
 #include "task2_queue.h"
-#include "task3_lru.hpp"
 
-#ifdef __MINGW32__
+#ifdef __WIN32__
 bool isPasswordStrong(const std::string& password) {
     if(password.length() < 8)
         return false;
@@ -102,20 +105,33 @@ void task2() {
 void task3() {
     auto* cache = new LruCache(128, 4, 64);
 
-    uint32_t hits = 0;
-    uint32_t misses = 0;
+    void* real_memory = malloc(1024 * 64);
+    memset(real_memory, 0, 1024 * 64);
+
+    auto* initial_hash = (uint8_t*)malloc(HASH_SIZE);
+    md5((uint8_t*)real_memory, 1024 * 64, initial_hash);
 
     for(int i = 0; i < 1024 * 32; i++) {
-        if(cache->access_cache(randrange(0x00, 0xFFFF)))
-            hits++;
-        else
-            misses++;
+        void* real_ptr = real_memory + randrange(0, 0xFFFF);
+        void* ptr = cache->access_cache(reinterpret_cast<uint64_t>(real_ptr));
+        (*static_cast<char*>(ptr))++;
     }
 
-    printf("Hits: %d\n", hits);
-    printf("Misses: %d\n", misses);
-
+    printf("Hits: %d\n", cache->getHitCount());
+    printf("Misses: %d\n", cache->getMissCount());
     delete cache;
+
+    auto* new_hash = (uint8_t*)malloc(HASH_SIZE);
+    md5((uint8_t*)real_memory, 1024 * 64, new_hash);
+
+    if (memcmp(initial_hash, new_hash, HASH_SIZE) == 0)
+        printf("Hashes are equal.\n");
+    else
+        printf("Hashes are not equal.\n");
+
+    free(real_memory);
+    free(initial_hash);
+    free(new_hash);
 }
 
 int main() {
